@@ -35,10 +35,30 @@ local function on_exit(job_id, code, event)
     buffer = -1
     win = -1
   end
+
+  local dir_file = os.getenv("LAZYGIT_NEW_DIR_FILE")
+
+  if dir_file then
+    local file = io.open(dir_file, "r")
+
+    if file then
+      local content = file:read("*all")
+      file:close()
+      print("Changing directory to: " .. content)
+      vim.fn.chdir(content)
+    else
+      print("Failed to open file: " .. file)
+    end
+
+    vim.env.LAZYGIT_NEW_DIR_FILE = nil
+  end
 end
+
 
 --- Call lazygit
 local function exec_lazygit_command(cmd)
+  vim.env.LAZYGIT_NEW_DIR_FILE = vim.fn.expand("~/.lazygit/newdir")
+
   if LAZYGIT_LOADED == false then
     -- ensure that the buffer is closed on exit
     vim.g.lazygit_opened = 1
@@ -46,6 +66,7 @@ local function exec_lazygit_command(cmd)
   end
   vim.cmd("startinsert")
 end
+
 
 local function lazygitdefaultconfigpath()
   -- lazygit -cd gives only the config dir, not the config file, so concat config.yml
@@ -67,7 +88,8 @@ local function lazygitgetconfigpath()
     elseif fn.empty(fn.glob(vim.g.lazygit_config_file_path)) == 0 then
       return vim.g.lazygit_config_file_path
     else
-      print("lazygit: custom config file path: '" .. vim.g.lazygit_config_file_path .. "' could not be found. Returning default config")
+      print("lazygit: custom config file path: '" ..
+        vim.g.lazygit_config_file_path .. "' could not be found. Returning default config")
       return default_config_path
     end
   else
@@ -96,7 +118,7 @@ local function lazygit(path)
   if vim.g.lazygit_use_custom_config_file_path == 1 then
     local config_path = lazygitgetconfigpath()
     if type(config_path) == "table" then
-     config_path = table.concat(config_path, ",")
+      config_path = table.concat(config_path, ",")
     end
     cmd = cmd .. " -ucf '" .. config_path .. "'" -- quote config_path to avoid whitespace errors
   end
@@ -153,14 +175,13 @@ local function lazygitconfig()
     vim.ui.select(
       config_file,
       { prompt = "select config file to edit" },
-      function (path)
+      function(path)
         open_or_create_config(path)
       end
     )
   else
     open_or_create_config(config_file)
   end
-
 end
 
 return {
